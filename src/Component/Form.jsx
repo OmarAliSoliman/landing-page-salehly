@@ -1,13 +1,24 @@
 import React, { Component } from "react";
 
+// axios
 import axios from "axios";
+
+// joi
+import joi from "joi-browser";
+
+//
+import { toast } from "react-toastify";
+
+//
+import { Link } from "react-router-dom";
 
 class Form extends Component {
   state = {
     cities: [],
     services: [],
     emplyees: [],
-    customermobile: "",
+    date: "",
+    time: "",
     fullName: "",
     mobile: "",
     email: "",
@@ -23,9 +34,12 @@ class Form extends Component {
     orderDetails: "",
     orderComments: "",
     orderNotes: "",
-    price: "",
-    offerPrice: "",
-    priceAfterOffer: "",
+    price: 0,
+    offerPrice: 0,
+    priceAfterOffer: 0,
+    errors: {},
+    loading: false,
+    disabled: false
   };
 
   componentDidMount() {
@@ -56,6 +70,59 @@ class Form extends Component {
       });
   }
 
+  schema = {
+    fullName: joi.string().required(),
+    mobile: joi.string().alphanum().min(11).max(11).required(),
+    email: joi.string().email().required(),
+    address: joi.string().required(),
+    cityId: joi.string().required(),
+    employeeId: joi.string().required(),
+    serviceId: joi.string().required(),
+    date: joi.date().required(),
+    time: joi.string().required(),
+    orderDetails: joi.string().required(),
+  };
+
+  validate = () => {
+    var state = { ...this.state };
+    delete state.cities;
+    delete state.services;
+    delete state.emplyees;
+    delete state.handyManId;
+    delete state.datePrefered;
+    delete state.orderStepId;
+    delete state.offerId;
+    delete state.orderComments;
+    delete state.orderNotes;
+    delete state.price;
+    delete state.offerPrice;
+    delete state.priceAfterOffer;
+    delete state.customerId;
+    delete state.errors;
+    delete state.loading;
+    delete state.disabled;
+
+    const res = joi.validate(state, this.schema, { abortEarly: false });
+    console.log(res);
+    if (res.error === null) {
+      this.setState({
+        errors: {},
+      });
+      return res.error;
+    }
+
+    let newErrors = {};
+    res.error.details.map((er) => {
+      newErrors[er.path] = er.message;
+    });
+
+    this.setState({
+      errors: newErrors,
+    });
+
+    return res.error;
+  };
+
   render() {
     const handelChange = (e) => {
       this.setState({
@@ -63,29 +130,63 @@ class Form extends Component {
       });
     };
 
-    const handelCityChange = (e) =>{
-      this.setState({
-        [e.target.name]: e.target.value,
-      })
-     }
-
     const submitForm = (e) => {
       e.preventDefault();
-      let state = { ...this.state };
-      state.id = this.state.lastItem + 1;
-      state.code = "ORD-102";
-      state.orderstatus = "تحت المعاينة والطلب";
-      state.price = "0";
-      delete state.errors;
-      delete state.lastItem;
-      axios.post("http://localhost:3000/fixordersNotset", state);
+      const errors = this.validate();
+      this.setState({
+        loading: true,
+        disabled: true
+
+      })
+      if (errors === null) {
+        let state = { ...this.state };
+        delete state.cities;
+        delete state.services;
+        delete state.emplyees;
+        delete state.date;
+        delete state.time;
+        delete state.fullName;
+        delete state.mobile;
+        delete state.email;
+        delete state.address;
+        delete state.employeeId;
+        delete state.handyManId;
+        delete state.orderStepId;
+        delete state.offerId;
+        delete state.errors;
+        delete state.loading;
+        delete state.disabled;
+
+
+        let newDate = this.state.date + "T" + this.state.time + "Z";
+        state.datePrefered = newDate;
+        console.log(state);
+
+        axios
+          .post(
+            "http://sal7lyy-001-site1.gtempurl.com/api/Orders/CreateOrder",
+            state
+          )
+          .then((res) => {
+            console.log(res);
+            toast.success("Success");
+            this.setState({
+              loading: false,
+              disabled: false
+            })
+          });
+      } else {
+        toast.error("There are some of erros");
+        this.setState({
+          loading: false,
+          disabled: false
+        })
+        return;
+      }
     };
 
     const customerVerfication = async (e) => {
       e.preventDefault();
-
-      // const oldState = {...this.state};
-
       var customerInfo = {};
       var customermobile = this.state.mobile;
       console.log(customermobile);
@@ -98,16 +199,19 @@ class Form extends Component {
             customerInfo = res.data.data.filter(
               (cu) => cu.mobile === customermobile
             );
+            console.log(customerInfo);
             this.setState({
               fullName: customerInfo[0].fullName,
               address: customerInfo[0].address,
               mobile: customerInfo[0].mobile,
               email: customerInfo[0].email,
-              cityId: "4ad6ae8f-dc36-4820-0366-08d963983a5d"
+              cityId: "4ad6ae8f-dc36-4820-0366-08d963983a5d",
+              customerId: customerInfo[0].id,
+              errors: {},
             });
           });
       } catch (ex) {
-        alert("not ound");
+        toast.info("Not matching please go to add new Customer");
         this.setState({
           fullName: "",
           address: "",
@@ -122,7 +226,11 @@ class Form extends Component {
 
     return (
       <div className="conatiner">
-        <div className="new-order">
+        <div
+          className="new-order"
+          id="NewOrder"
+          style={{ backgroundImage: "url('./images/menu-bg.jpg')" }}
+        >
           <div className="">
             <div className="cardForm">
               <form action="" onSubmit={submitForm}>
@@ -132,9 +240,9 @@ class Form extends Component {
                     <div className="customer-verification">
                       <div className="row">
                         <div className="col-sm-12 col-md-6 col-lg-8">
-                          <div className="input-group mb-3">
+                          <div className="input-group">
                             <input
-                              type="text"
+                              type="number"
                               className="form-control"
                               placeholder="رقم الهاتف"
                               name="mobile"
@@ -150,35 +258,16 @@ class Form extends Component {
                               </button>
                             </div>
                           </div>
+                          <span className="error">
+                            {this.state.errors.mobile}
+                          </span>
                         </div>
                         <div className="col-sm-12 col-md-6 col-lg-4">
-                          <button className="btn">عميل جديد</button>
+                          <Link to="/new-customer" className="btn">
+                            عميل جديد
+                          </Link>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="col-sm-12 col-md-12 col-lg-6">
-                    <div className="form-group checkmarkForm-group">
-                      <label className="container checkmarkContainer">
-                        <span className="word-label">مستعجل </span>
-                        <input
-                          type="radio"
-                          name="orderfast"
-                          onChange={handelChange}
-                          value="مستعجل"
-                        />
-                        <span className="checkmark"></span>
-                      </label>
-                      <label className="container checkmarkContainer">
-                        <span className="word-label">عادي </span>
-                        <input
-                          type="radio"
-                          name="orderfast"
-                          onChange={handelChange}
-                          value="عادي"
-                        />
-                        <span className="checkmark"></span>
-                      </label>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
@@ -192,12 +281,15 @@ class Form extends Component {
                         value={this.state.fullName}
                         onChange={handelChange}
                       />
+                      <span className="error">
+                        {this.state.errors.fullName}
+                      </span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
                     <div className="form-group">
                       <input
-                        type="text"
+                        type="number"
                         name="mobile"
                         id=""
                         className="form-control"
@@ -205,6 +297,7 @@ class Form extends Component {
                         value={this.state.mobile}
                         onChange={handelChange}
                       />
+                      <span className="error">{this.state.errors.mobile}</span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
@@ -218,6 +311,7 @@ class Form extends Component {
                         value={this.state.address}
                         onChange={handelChange}
                       />
+                      <span className="error">{this.state.errors.address}</span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
@@ -231,6 +325,7 @@ class Form extends Component {
                         value={this.state.email}
                         onChange={handelChange}
                       />
+                      <span className="error">{this.state.errors.email}</span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
@@ -246,11 +341,10 @@ class Form extends Component {
                           المحافظة
                         </option>
                         {cities.map((city) => (
-                          <option value={city.id}>
-                            {city.name}
-                          </option>
+                          <option value={city.id}>{city.name}</option>
                         ))}
                       </select>
+                      <span className="error">{this.state.errors.cityId}</span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
@@ -266,31 +360,33 @@ class Form extends Component {
                           تسجيل
                         </option>
                         {emplyees.map((em) => (
-                          <option value={em.id} >
-                            {em.fullName}
-                          </option>
+                          <option value={em.id}>{em.fullName}</option>
                         ))}
                       </select>
+                      <span className="error">
+                        {this.state.errors.employeeId}
+                      </span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
                     <div className="form-group">
                       <select
-                        name="service"
+                        name="serviceId"
                         id=""
                         className="customSelect form-control"
-                        value={this.state.service}
+                        value={this.state.serviceId}
                         onChange={handelChange}
                       >
                         <option value="" selected disabled>
                           نوع الخدمة{" "}
                         </option>
                         {services.map((serv) => (
-                          <option value={serv.name} id={serv.id}>
-                            {serv.name}
-                          </option>
+                          <option value={serv.id}>{serv.name}</option>
                         ))}
                       </select>
+                      <span className="error">
+                        {this.state.errors.serviceId}
+                      </span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
@@ -304,6 +400,7 @@ class Form extends Component {
                         value={this.state.date}
                         onChange={handelChange}
                       />
+                      <span className="error">{this.state.errors.date}</span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-6">
@@ -316,23 +413,35 @@ class Form extends Component {
                         value={this.state.time}
                         onChange={handelChange}
                       />
+                      <span className="error">{this.state.errors.time}</span>
                     </div>
                   </div>
                   <div className="col-sm-12 col-md-6 col-lg-12">
                     <div className="form-group">
                       <textarea
-                        name="description"
+                        name="orderDetails"
                         className="form-control"
                         id=""
                         placeholder="وصف الخدمه"
-                        value={this.state.description}
+                        value={this.state.orderDetails}
                         onChange={handelChange}
                       ></textarea>
+                      <span className="error">
+                        {this.state.errors.orderDetails}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <div class="btn-submit">
-                  <button type="submit">تسجيل</button>
+                  <button type="submit" disabled={this.state.disabled}>
+                  {this.state.loading ? (
+                        <div class="spinner-border text-light" role="status">
+                          <span class="sr-only">Loading...</span>
+                        </div>
+                      ) : (
+                        "تسجيل"
+                      )}
+                  </button>
                 </div>
               </form>
             </div>

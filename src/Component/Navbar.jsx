@@ -1,5 +1,8 @@
 import React, { Component } from "react";
 
+
+import {Link} from 'react-router-dom';
+
 class Navbar extends Component {
   state = {
     scrolling: false,
@@ -16,7 +19,7 @@ class Navbar extends Component {
           <nav className="desktopMenue">
             <ul className="navList list-unstyled">
               <li className="active">
-                <a href="#">الرئيسية</a>
+                <Link to="/">الرئيسية</Link>
               </li>
               <li>
                 <a href="#ourServices">خدمات</a>{" "}
